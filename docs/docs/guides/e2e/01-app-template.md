@@ -21,51 +21,243 @@ To update the app template:
 - Move into this folder and run `yarn develop`.
 - Login using the credentials found in `e2e/constants.js`.
 - Make any changes you need (i.e. create a content-type).
-- Kill the server and run [[`yarn strapi templates:generate <path>`]](https://docs.strapi.io/dev-docs/cli#strapi-templatesgenerate).
-- Replace the existing template in `e2e/app-template` with the newly generated one.
+- Replace the existing template in `e2e/app-template` with the current folder content (only keep the files you need).
 
 ## Content Schemas
 
 ### Article
 
-A collection type, the schema can be found in: `e2e/app-template/template/src/api/article/content-types/article/schema.json`
+```json
+{
+  // ...
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "blocks"
+    },
+    "authors": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::author.author",
+      "inversedBy": "articles"
+    }
+  }
+  // ...
+}
+```
 
 ### Author
 
-A collection type, the schema can be found in `e2e/app-template/template/src/api/article/content-types/author/schema.json`
-
-### Homepage
-
-A single type, the schema can be found in `e2e/app-template/template/src/api/homepage/content-types/homepage/schema.json`
-
-## API Customisations
-
-### Database
-
-Found at `template/src/api/database`
-
-#### Usage
-
-```ts
-import { test } from '@playwright/test';
-
-test.beforeEach(async ({ page }) => {
-  await page.request.fetch('http://localhost:1337/api/database/dump', {
-    method: 'POST',
-  });
-});
+```json
+{
+  // ...
+  "attributes": {
+    "name": {
+      "type": "string"
+    },
+    "profile": {
+      "allowedTypes": ["images", "files", "videos", "audios"],
+      "type": "media",
+      "multiple": false
+    },
+    "articles": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::article.article",
+      "mappedBy": "authors"
+    }
+  }
+  // ...
+}
 ```
 
-This endpoint does not have a `body`.
+### Homepage (Single Type)
 
-#### What does it do?
+```json
+{
+  // ...
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "blocks"
+    },
+    "admin_user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user"
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "component": "meta.seo"
+    }
+  }
+  // ...
+}
+```
 
-This endpoint `DELETES` every row from every table _excluding_ the "core" tables – normally prefixed with `strapi_`.
+### Product
 
-#### Why do we have it?
+This collection type is internationalized.
 
-This lets us wipe the entire test instance _if_ we need to. DTS does technically
-do this already for us. But nonetheless, its useful.
+```json
+{
+  // ...
+  "attributes": {
+    "name": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "isAvailable": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      },
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "description": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "blocks"
+    },
+    "images": {
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": ["images", "files", "videos", "audios"],
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "component": "meta.seo"
+    },
+    "sku": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "integer",
+      "unique": true
+    },
+    "variations": {
+      "type": "component",
+      "repeatable": true,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "component": "product.variations"
+    }
+  }
+  // ...
+}
+```
+
+### Shop (Single Type)
+
+This single type is internationalized.
+
+```json
+{
+  // ...
+  "attributes": {
+    "title": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "string",
+      "required": true
+    },
+    "content": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "dynamiczone",
+      "components": [
+        "page-blocks.product-carousel",
+        "page-blocks.hero-image",
+        "page-blocks.content-and-image"
+      ],
+      "required": true,
+      "min": 2
+    },
+    "seo": {
+      "type": "component",
+      "repeatable": false,
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "component": "meta.seo"
+    }
+  }
+  // ...
+}
+```
+
+### Upcoming Match (Single Type)
+
+```json
+{
+  // ...
+  "attributes": {
+    "title": {
+      "type": "string"
+    },
+    "number_of_upcoming_matches": {
+      "type": "integer"
+    },
+    "next_match": {
+      "type": "date"
+    }
+  }
+  // ...
+}
+```
+
+## API Customisations
 
 ### Config
 

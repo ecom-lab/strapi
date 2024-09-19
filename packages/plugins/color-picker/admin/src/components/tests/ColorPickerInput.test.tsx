@@ -1,4 +1,5 @@
 import { DesignSystemProvider } from '@strapi/design-system';
+import { Form } from '@strapi/strapi/admin';
 import { render as renderRTL } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IntlProvider } from 'react-intl';
@@ -9,21 +10,22 @@ const render = () => ({
   ...renderRTL(
     <ColorPickerInput
       name="color"
+      label={'color-picker'}
+      type="string"
+      initialValue=""
       value=""
-      onChange={jest.fn()}
-      attribute={{
-        customField: 'plugin::color-picker.color',
-        pluginOptions: { i18n: { localized: true } },
-        type: 'string',
-      }}
-      intlLabel={{ id: 'color-picker', defaultMessage: 'color-picker' }}
+      onChange={() => {}}
     />,
     {
       wrapper: ({ children }) => {
         const locale = 'en';
         return (
           <IntlProvider locale={locale} messages={{}} textComponent="span">
-            <DesignSystemProvider locale={locale}>{children}</DesignSystemProvider>
+            <DesignSystemProvider locale={locale}>
+              <Form onSubmit={jest.fn()} method="POST">
+                {children}
+              </Form>
+            </DesignSystemProvider>
           </IntlProvider>
         );
       },

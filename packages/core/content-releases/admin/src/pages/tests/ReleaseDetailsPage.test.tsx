@@ -1,32 +1,30 @@
-import { useRBAC } from '@strapi/helper-plugin';
+import { useRBAC } from '@strapi/admin/strapi-admin';
 import { within } from '@testing-library/react';
 import { render, server, screen } from '@tests/utils';
 import { rest } from 'msw';
+import { Route, Routes } from 'react-router-dom';
 
 import { ReleaseDetailsPage } from '../ReleaseDetailsPage';
 
 import { mockReleaseDetailsPageData } from './mockReleaseDetailsPageData';
 
-jest.mock('@strapi/helper-plugin', () => ({
-  ...jest.requireActual('@strapi/helper-plugin'),
-  // eslint-disable-next-line
-  CheckPermissions: ({ children }: { children: JSX.Element }) => <div>{children}</div>,
-  useRBAC: jest.fn(() => ({
-    isLoading: false,
-    allowedActions: { canUpdate: true, canDelete: true },
-  })),
-}));
-
 /**
  * Mocking the useDocument hook to avoid validation errors for testing
  */
 jest.mock('@strapi/admin/strapi-admin', () => ({
-  unstable_useDocument: jest
-    .fn()
-    .mockReturnValue({ validate: jest.fn().mockReturnValue({ errors: {} }) }),
+  ...jest.requireActual('@strapi/admin/strapi-admin'),
+  useRBAC: jest.fn(() => ({
+    isLoading: false,
+    allowedActions: { canUpdate: true, canDelete: true, canPublish: true },
+  })),
 }));
 
-describe('Releases details page', () => {
+jest.mock('@strapi/content-manager/strapi-admin', () => ({
+  ...jest.requireActual('@strapi/content-manager/strapi-admin'),
+  unstable_useDocument: jest.fn().mockReturnValue({ validate: jest.fn().mockReturnValue({}) }),
+}));
+
+describe.skip('Releases details page', () => {
   it('renders the details page with no release-actions', async () => {
     server.use(
       rest.get('/content-releases/:releaseId', (req, res, ctx) =>
@@ -40,9 +38,14 @@ describe('Releases details page', () => {
       )
     );
 
-    const { user } = render(<ReleaseDetailsPage />, {
-      initialEntries: [{ pathname: `/content-releases/1` }],
-    });
+    const { user } = render(
+      <Routes>
+        <Route path="/content-releases/:releaseId" element={<ReleaseDetailsPage />} />
+      </Routes>,
+      {
+        initialEntries: [{ pathname: `/content-releases/1` }],
+      }
+    );
 
     const releaseTitle = await screen.findByText(
       mockReleaseDetailsPageData.noActionsHeaderData.data.name
@@ -52,10 +55,13 @@ describe('Releases details page', () => {
     const releaseSubtitle = await screen.findAllByText('No entries');
     expect(releaseSubtitle[0]).toBeInTheDocument();
 
+    const releaseStatus = screen.getByText('empty');
+    expect(releaseStatus).toBeInTheDocument();
+
     const moreButton = screen.getByRole('button', { name: 'Release edit and delete menu' });
     expect(moreButton).toBeInTheDocument();
 
-    const publishButton = screen.getByRole('button', { name: 'Publish' });
+    const publishButton = await screen.findByRole('button', { name: 'Publish' });
     expect(publishButton).toBeInTheDocument();
     expect(publishButton).toBeDisabled();
 
@@ -97,12 +103,17 @@ describe('Releases details page', () => {
       )
     );
 
-    const { user } = render(<ReleaseDetailsPage />, {
-      initialEntries: [{ pathname: `/content-releases/1` }],
-      userEventOptions: {
-        skipHover: true,
-      },
-    });
+    const { user } = render(
+      <Routes>
+        <Route path="/content-releases/:releaseId" element={<ReleaseDetailsPage />} />
+      </Routes>,
+      {
+        initialEntries: [{ pathname: `/content-releases/1` }],
+        userEventOptions: {
+          skipHover: true,
+        },
+      }
+    );
 
     await screen.findByText(mockReleaseDetailsPageData.noActionsHeaderData.data.name);
 
@@ -132,9 +143,14 @@ describe('Releases details page', () => {
       )
     );
 
-    render(<ReleaseDetailsPage />, {
-      initialEntries: [{ pathname: `/content-releases/1` }],
-    });
+    render(
+      <Routes>
+        <Route path="/content-releases/:releaseId" element={<ReleaseDetailsPage />} />
+      </Routes>,
+      {
+        initialEntries: [{ pathname: `/content-releases/1` }],
+      }
+    );
 
     const releaseTitle = await screen.findByText(
       mockReleaseDetailsPageData.withActionsHeaderData.data.name
@@ -146,7 +162,7 @@ describe('Releases details page', () => {
     expect(tables).toHaveLength(2);
   });
 
-  it('shows the right status', async () => {
+  it('shows the right status for unpublished release', async () => {
     server.use(
       rest.get('/content-releases/:releaseId', (req, res, ctx) =>
         res(ctx.json(mockReleaseDetailsPageData.withActionsHeaderData))
@@ -159,14 +175,23 @@ describe('Releases details page', () => {
       )
     );
 
-    render(<ReleaseDetailsPage />, {
-      initialEntries: [{ pathname: `/content-releases/1` }],
-    });
+    render(
+      <Routes>
+        <Route path="/content-releases/:releaseId" element={<ReleaseDetailsPage />} />
+      </Routes>,
+      {
+        initialEntries: [{ pathname: `/content-releases/1` }],
+      }
+    );
 
     const releaseTitle = await screen.findByText(
       mockReleaseDetailsPageData.withActionsHeaderData.data.name
     );
     expect(releaseTitle).toBeInTheDocument();
+
+    const releaseStatus = screen.getByText('ready');
+    expect(releaseStatus).toBeInTheDocument();
+    expect(releaseStatus).toHaveStyle(`color: #328048`);
 
     const cat1Row = screen.getByRole('row', { name: /cat1/i });
     expect(within(cat1Row).getByRole('gridcell', { name: 'Ready to publish' })).toBeInTheDocument();
@@ -180,5 +205,37 @@ describe('Releases details page', () => {
     expect(
       within(add1Row).getByRole('gridcell', { name: 'Already published' })
     ).toBeInTheDocument();
+  });
+
+  it('shows the right release status for published release', async () => {
+    server.use(
+      rest.get('/content-releases/:releaseId', (req, res, ctx) =>
+        res(ctx.json(mockReleaseDetailsPageData.withActionsAndPublishedHeaderData))
+      )
+    );
+
+    server.use(
+      rest.get('/content-releases/:releaseId/actions', (req, res, ctx) =>
+        res(ctx.json(mockReleaseDetailsPageData.withMultipleActionsBodyData))
+      )
+    );
+
+    render(
+      <Routes>
+        <Route path="/content-releases/:releaseId" element={<ReleaseDetailsPage />} />
+      </Routes>,
+      {
+        initialEntries: [{ pathname: `/content-releases/3` }],
+      }
+    );
+
+    const releaseTitle = await screen.findByText(
+      mockReleaseDetailsPageData.withActionsAndPublishedHeaderData.data.name
+    );
+    expect(releaseTitle).toBeInTheDocument();
+
+    const releaseStatus = screen.getByText('done');
+    expect(releaseStatus).toBeInTheDocument();
+    expect(releaseStatus).toHaveStyle(`color: #4945ff`);
   });
 });

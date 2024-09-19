@@ -41,6 +41,18 @@ Once that's completed, you should be able to run your Strapi instance as usual:
 yarn develop
 ```
 
+> **Tip!**
+> If you can't run the test-app because it is not present in the monorepo dependencies you can fix this by making the following change to the root monorepo `package.json` file and running `yarn install` at both the root of the monorepo and the test-app you are running.
+>
+> **This change should not be committed**.
+
+```
+  "workspaces": [
+    ...
+    "test-apps/e2e/*",
+  ]
+```
+
 If you change any of the content schemas (including adding new ones) be sure to [update the `app-template`](./01-app-template.md) otherwise DTS will fail to import the data for schemas that do not exist.
 
 ### Exporting a data packet
@@ -71,15 +83,15 @@ the Strapi application to a desired state prior to testing.
 
 ### Importing in test scenarios
 
-There's an abstraction for importing the data programmatically during tests named `resetDatabaseAndImportDataFromPath` found in `e2e/scripts/dts-import.js`. Typically, you'll want to run this **before** each test:
+There's an abstraction for importing the data programmatically during tests named `resetDatabaseAndImportDataFromPath` found in `e2e/utils/dts-import.js`. Typically, you'll want to run this **before** each test:
 
 ```ts {2,5-8}
 import { test } from '@playwright/test';
-import { resetDatabaseAndImportDataFromPath } from './scripts/dts-import';
+import { resetDatabaseAndImportDataFromPath } from './utils/dts-import';
 
 test.describe('Strapi Application', () => {
   test.beforeEach(async ({ page }) => {
-    await resetDatabaseAndImportDataFromPath('./e2e/data/backup.tar');
+    await resetDatabaseAndImportDataFromPath('backup.tar');
     await page.goto('/admin');
   });
 

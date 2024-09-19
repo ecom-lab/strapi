@@ -8,6 +8,7 @@ export interface Release extends Entity {
   name: string;
   releasedAt: string | null;
   scheduledAt: string | null;
+  status: 'ready' | 'blocked' | 'failed' | 'done' | 'empty';
   // We save scheduledAt always in UTC, but users can set the release in a different timezone to show that in the UI for everyone
   timezone: string | null;
   actions: ReleaseAction[];
@@ -26,11 +27,11 @@ export interface ReleaseDataResponse extends Omit<Release, 'actions'> {
 }
 
 export interface ReleaseForContentTypeEntryDataResponse extends Omit<Release, 'actions'> {
-  action: ReleaseAction;
+  actions: ReleaseAction[];
 }
 
 /**
- * GET /content-releases/ - Get all releases
+ * GET /content-releases/ - Get releases paginated
  */
 export declare namespace GetReleases {
   export interface Request {
@@ -44,22 +45,24 @@ export declare namespace GetReleases {
     data: ReleaseDataResponse[];
     meta: {
       pagination?: Pagination;
+      pendingReleasesCount?: number;
     };
     error?: errors.ApplicationError;
   }
 }
 
 /**
- * GET /content-releases/ - Get all releases for a given entry
+ * GET /content-releases/findByDocumentAttached - Get releases paginated
  */
-export declare namespace GetContentTypeEntryReleases {
+export declare namespace GetReleasesByDocumentAttached {
   export interface Request {
     state: {
       userAbility: {};
     };
     query: {
-      contentTypeUid: ReleaseAction['contentType'];
-      entryId: ReleaseAction['entry']['id'];
+      contentType: string;
+      entryDocumentId: ReleaseAction['entry']['entryDocumentId'];
+      locale?: string;
       hasEntryAttached?: boolean;
     };
   }
@@ -67,6 +70,25 @@ export declare namespace GetContentTypeEntryReleases {
   export interface Response {
     data: ReleaseForContentTypeEntryDataResponse[];
     error?: errors.ApplicationError;
+  }
+}
+
+/**
+ * GET /content-releases/mapEntriesToReleases - Map entries to releases
+ */
+export declare namespace MapEntriesToReleases {
+  export interface Request {
+    query: {
+      contentTypeUid: ReleaseAction['contentType'];
+      documentIds: ReleaseAction['entryDocumentId'][];
+      locale?: ReleaseAction['locale'];
+    };
+  }
+
+  export interface Response {
+    data: {
+      [documentId: ReleaseAction['entryDocumentId']]: Pick<Release, 'id' | 'name'>[];
+    };
   }
 }
 
